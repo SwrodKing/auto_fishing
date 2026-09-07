@@ -33,7 +33,9 @@ QTE_STRATEGIES_MAP: dict[FishingLocation, Type[strategy.BaseQTEStrategy]] = {
     FishingLocation.SHALLOW_SHORE: strategy.FrostStraitQTEStrategy,
     FishingLocation.FROST_STRAIT: strategy.FrostStraitQTEStrategy,
     FishingLocation.ABYSS_MAW: strategy.AbyssMawQTEStrategy,
-    FishingLocation.ATLANTIS: strategy.FrostStraitQTEStrategy,
+    # 亚特兰蒂斯部分鱼技能会让黄色区域消失、只剩持续缩小的蓝色区域，
+    # 复用深渊巨口策略：无黄色时按蓝色区域按键刷新，避免 QTE 超时后误入恢复循环。
+    FishingLocation.ATLANTIS: strategy.AbyssMawQTEStrategy,
 }
 
 
