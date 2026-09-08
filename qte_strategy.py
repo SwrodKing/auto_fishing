@@ -41,7 +41,7 @@ class BaseQTEStrategy:
             self.pixel_threshold_scale,
         )
         self.abyss_yellow_pixel_threshold = utils.scale_pixel_threshold(
-            300,
+            BITE_PIXEL_THRESHOLD,   # 原值300，复用上钩阈值 BITE_PIXEL_THRESHOLD 220
             self.pixel_threshold_scale,
         )
 
