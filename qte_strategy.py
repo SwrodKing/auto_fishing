@@ -40,9 +40,8 @@ class BaseQTEStrategy:
             5,
             self.pixel_threshold_scale,
         )
-        # 黄色优先判定阈值：config 可调（参考分辨率像素），低于此值视为黄色被遮挡/面积过小，改按蓝色按键
         self.abyss_yellow_pixel_threshold = utils.scale_pixel_threshold(
-            config.getint("roi", "abyss_yellow_pixel_threshold", fallback=300),
+            300,
             self.pixel_threshold_scale,
         )
 
@@ -351,15 +350,9 @@ class AbyssMawQTEStrategy(BaseQTEStrategy):
                 right_x,
             )
 
-            # 黄色完整且光标落在黄色上时优先按黄；
-            # 黄色被遮挡/面积过小，或光标不在黄色上时，回落蓝色区域按键。
-            yellow_in_range = (
-                self._mask_range_count(yellow_mask, left_x, right_x)
-                > self.abyss_yellow_pixel_threshold
-            )
-            on_yellow = self._mask_column_has_color(yellow_mask, check_x)
-            if yellow_in_range and on_yellow:
-                pydirectinput.press("space")
+            if self._mask_range_count(yellow_mask, left_x, right_x) > self.abyss_yellow_pixel_threshold:
+                if self._mask_column_has_color(yellow_mask, check_x):
+                    pydirectinput.press("space")
             elif self._mask_column_has_color(blue_mask, check_x):
                 pydirectinput.press("space")
 
