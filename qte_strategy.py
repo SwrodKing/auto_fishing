@@ -44,8 +44,7 @@ class BaseQTEStrategy:
             self.pixel_threshold_scale,
         )
         self.abyss_yellow_pixel_threshold = utils.scale_pixel_threshold(
-            # 300,
-            config.getint("roi", "qte_abyss_yellow_pixel_threshold", fallback=280),
+            config.getint("roi", "qte_abyss_yellow_pixel_threshold", fallback=300),
             self.pixel_threshold_scale,
         )
 
