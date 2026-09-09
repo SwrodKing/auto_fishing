@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import configparser
+import logging
 import time
 
 import cv2
@@ -11,6 +12,8 @@ import pydirectinput
 
 import utils
 from utils import Rect
+
+log = logging.getLogger(__name__)
 
 DEFAULT_LOOP_SLEEP_SECONDS = 0.01
 
@@ -41,7 +44,8 @@ class BaseQTEStrategy:
             self.pixel_threshold_scale,
         )
         self.abyss_yellow_pixel_threshold = utils.scale_pixel_threshold(
-            300,
+            # 300,
+            config.getint("roi", "qte_abyss_yellow_pixel_threshold", fallback=280),
             self.pixel_threshold_scale,
         )
 
@@ -350,10 +354,13 @@ class AbyssMawQTEStrategy(BaseQTEStrategy):
                 right_x,
             )
 
-            if self._mask_range_count(yellow_mask, left_x, right_x) > self.abyss_yellow_pixel_threshold:
+            yellow_count = self._mask_range_count(yellow_mask, left_x, right_x)
+            if yellow_count > self.abyss_yellow_pixel_threshold:
                 if self._mask_column_has_color(yellow_mask, check_x):
+                    log.info("QTE 按黄: 黄色像素=%d (阈值=%d)", yellow_count, self.abyss_yellow_pixel_threshold)
                     pydirectinput.press("space")
             elif self._mask_column_has_color(blue_mask, check_x):
+                log.info("QTE 按蓝: 黄色像素=%d (阈值=%d)", yellow_count, self.abyss_yellow_pixel_threshold)
                 pydirectinput.press("space")
 
             self._sleep_loop()
