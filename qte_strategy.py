@@ -192,6 +192,7 @@ class BaseQTEStrategy:
         """连续多帧看不到倒计时条时确认本轮结束，避免单帧闪烁误判。"""
         if no_bar_frames > 80:
             print(">>> 钓鱼结束")
+            log.info(">>> 钓鱼结束")
             self._finish_fishing()
             return True
         return False
@@ -206,6 +207,7 @@ class FrostStraitQTEStrategy(BaseQTEStrategy):
 
     def play_qte(self, sct: utils.DxCameraCapture) -> None:
         print(">>> 开始 QTE...")
+        log.info(">>> 开始 QTE（策略=%s）", type(self).__name__)
         no_bar_frames = 0
         qte_started = False
         loading_logged = False
@@ -223,6 +225,7 @@ class FrostStraitQTEStrategy(BaseQTEStrategy):
                 if not qte_started:
                     if not loading_logged:
                         print(">>> 倒计时条尚未出现，等待 QTE 界面加载")
+                        log.info(">>> 倒计时条尚未出现，等待 QTE 界面加载")
                         loading_logged = True
                     self._sleep_loop()
                     continue
@@ -237,6 +240,7 @@ class FrostStraitQTEStrategy(BaseQTEStrategy):
             
             if self.solve_ice_trouble(qte_hsv):
                 print(">>> 破冰成功，继续钓鱼")
+                log.info(">>> 破冰成功，继续钓鱼")
                 self._sleep_loop()
                 continue
 
@@ -300,6 +304,7 @@ class AbyssMawQTEStrategy(BaseQTEStrategy):
     def play_qte(self, sct: utils.DxCameraCapture) -> None:
         """黄色存在时优先命中黄色，否则在蓝色区域按键刷新下一轮。"""
         print(">>> 开始 QTE...")
+        log.info(">>> 开始 QTE（策略=%s）", type(self).__name__)
         no_bar_frames = 0
         qte_started = False
         loading_logged = False
@@ -318,6 +323,7 @@ class AbyssMawQTEStrategy(BaseQTEStrategy):
                 if not qte_started:
                     if not loading_logged:
                         print(">>> 倒计时条尚未出现，等待 QTE 界面加载")
+                        log.info(">>> 倒计时条尚未出现，等待 QTE 界面加载")
                         loading_logged = True
                     self._sleep_loop()
                     continue

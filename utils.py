@@ -74,6 +74,20 @@ class PixelThresholdScale:
         return current_area / reference_area
 
 
+class _QuietWriter:
+    """非 info 档时接管 stdout：静默所有普通 print，避免日常挂机刷屏。
+    关键交互提示（手动输入、回车关闭等）由调用方改走 stderr 保持可见。"""
+
+    def write(self, text: str) -> int:
+        return len(text)
+
+    def flush(self) -> None:
+        pass
+
+    def isatty(self) -> bool:
+        return False
+
+
 class DxCameraCapture:
     """对 dxcam 的轻量封装，统一输出 BGR 图像。"""
 
@@ -149,13 +163,11 @@ def read_ini(filename: str = "config.ini") -> configparser.ConfigParser:
     return config
 
 
-def setup_logging() -> None:
+def setup_logging(config: configparser.ConfigParser | None = None) -> None:
     """初始化日志，写入程序目录下的日志文件并输出到控制台。"""
     root_logger = logging.getLogger()
     if root_logger.handlers:
         return
-    root_logger.setLevel(logging.DEBUG)
-
     formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 
     file_handler = RotatingFileHandler(
@@ -164,14 +176,40 @@ def setup_logging() -> None:
         backupCount=3,
         encoding="utf-8",
     )
-    file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(formatter)
-    root_logger.addHandler(file_handler)
 
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(formatter)
     root_logger.addHandler(console_handler)
+
+    # 日志档位（config [log] debug_log）：
+    #   warning = 日志只写入 auto_fishing.log（warning/critical），控制台不输出（默认）
+    #   info    = 全部日志写入 auto_fishing.log 并输出控制台
+    #   false   = 完全不写日志文件，控制台仅保留“突发情况”等 warning/critical 提示
+    log_level = (
+        config.get("log", "debug_log", fallback="warning").strip().lower()
+        if config is not None
+        else "warning"
+    )
+    if log_level == "false":
+        root_logger.setLevel(logging.WARNING)
+        console_handler.setLevel(logging.WARNING)
+    elif log_level == "warning":
+        root_logger.setLevel(logging.WARNING)
+        file_handler.setLevel(logging.WARNING)
+        console_handler.setLevel(logging.CRITICAL + 1)
+        root_logger.addHandler(file_handler)
+    else:
+        root_logger.setLevel(logging.DEBUG)
+        file_handler.setLevel(logging.DEBUG)
+        console_handler.setLevel(logging.INFO)
+        root_logger.addHandler(file_handler)
+
+    # 控制台 print 流程提示独立开关（config [log] print_enabled）：
+    #   true  = 抛竿/上钩/QTE 等流程提示正常显示（默认）
+    #   false = 普通 print 全部静默；手动输入、按回车关闭等关键交互提示仍走 stderr 保持可见
+    if config is not None and not config.getboolean("log", "print_enabled", fallback=True):
+        sys.stdout = _QuietWriter()
 
     # 原生崩溃（如 onnxruntime / dxcam 段错误）时把 Python 调用栈转储到文件。
     try:
@@ -199,7 +237,8 @@ def install_exception_hook() -> None:
         sys.__excepthook__(exc_type, exc_value, exc_tb)
         if getattr(sys, "frozen", False):
             try:
-                input(">>> 程序异常退出，详细信息已写入 auto_fishing.log，按回车键关闭")
+                print(">>> 程序异常退出，详细信息已写入 auto_fishing.log，按回车键关闭", file=sys.stderr)
+                input()
             except Exception:
                 pass
 
@@ -481,6 +520,13 @@ dialog_confirm_top = 0.61
 ; 退出背包位置
 quit_backpack_left = 0.1
 quit_backpack_top = 0.05
+
+[log]
+; 日志档位：warning=日志只写入 auto_fishing.log，控制台不输出（默认）；info=全部日志写入 auto_fishing.log 并输出控制台；false=完全不写日志文件，控制台仅保留突发/异常提示
+debug_log = warning
+
+; 控制台 print 流程提示开关（与 debug_log 独立）：true=抛竿/上钩/QTE 等流程提示正常显示；false=普通 print 静默，仅保留手动输入与关键错误提示
+print_enabled = true
 
 [time]
 ; 一轮钓鱼结束后等待的时间，根据网络情况可以调整

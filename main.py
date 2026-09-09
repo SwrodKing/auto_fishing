@@ -5,6 +5,7 @@ from __future__ import annotations
 import configparser
 import ctypes
 import logging
+import sys
 import time
 from typing import Type
 
@@ -93,6 +94,7 @@ class FishingBot:
     def wait_for_bite(self, sct: DxCameraCapture) -> None:
         """轮询感叹号区域，检测到足够多黄色像素后按空格进入 QTE。"""
         print(">>> 等待鱼上钩")
+        log.info(">>> 等待鱼上钩")
         wait_start_time = time.monotonic()
         fail_num = 0
         max_yellow_pixel = 0
@@ -151,16 +153,18 @@ class FishingBot:
         """优先通过地点 OCR 自动选择策略，失败时再让用户手动选择。"""
         auto_selected_name = ocr_service.detect_location_from_ocr(sct, self.ocr_context, self.auto_select_strategy)
         if auto_selected_name is not None:
+            log.info(">>> 自动选择策略: %s", auto_selected_name.value)
             strategy_class = QTE_STRATEGIES_MAP[auto_selected_name]
             self.selected_location_name = auto_selected_name
             return strategy_class(self.config, self.region)
 
-        print("可选钓鱼地点: ")
+        print("可选钓鱼地点: ", file=sys.stderr)
         locations = list(QTE_STRATEGIES_MAP.keys())
         for idx, location in enumerate(locations, start=1):
-            print(f"{idx}: {location.value}")
+            print(f"{idx}: {location.value}", file=sys.stderr)
 
-        selected_location = input(">>> 输入数字对应的钓鱼地点: ")
+        print(">>> 输入数字对应的钓鱼地点: ", file=sys.stderr, end="")
+        selected_location = input()
         try:
             selected_index = int(selected_location) - 1
         except ValueError:
@@ -168,11 +172,13 @@ class FishingBot:
 
         if selected_index in range(len(locations)):
             selected_name = locations[selected_index]
-            print(f">>> 你选择了: {selected_name.value}")
+            print(f">>> 你选择了: {selected_name.value}", file=sys.stderr)
+            log.info(">>> 手动选择策略: %s", selected_name.value)
             self.selected_location_name = selected_name
             strategy_class = QTE_STRATEGIES_MAP[selected_name]
         else:
-            print(">>> 选择无效，默认使用寒霜海峡策略")
+            print(">>> 选择无效，默认使用寒霜海峡策略", file=sys.stderr)
+            log.warning(">>> 手动选择无效，回退寒霜海峡策略")
             self.selected_location_name = FishingLocation.FROST_STRAIT
             strategy_class = QTE_STRATEGIES_MAP[self.selected_location_name]
 
@@ -203,19 +209,19 @@ class FishingBot:
 
 def main() -> None:
     """定位游戏客户区并创建运行所需的配置与 OCR 上下文。"""
-    utils.setup_logging()
+    config = utils.read_ini()
+    utils.setup_logging(config)
     utils.install_exception_hook()
     log.info(">>> 程序启动")
 
     region = utils.get_window_region(GAME_TITLE)
     if not region:
         log.error(">>> 未找到标题为 '%s' 的窗口", GAME_TITLE)
-        input(">>> 程序结束，按回车键关闭")
+        print(">>> 程序结束，按回车键关闭", file=sys.stderr)
+        input()
         raise SystemExit(1)
     log.info(">>> 已定位游戏窗口: %s", region.as_tuple())
 
-    config = utils.read_ini()
-    
     ocr_context = ocr_utils.build_ocr_context(config, region)
     
     FishingBot(config, region, ocr_context).run()

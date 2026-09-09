@@ -1,5 +1,7 @@
 """封装抛竿、背包清理和钓点切换等会操作游戏界面的动作。"""
 
+import logging
+
 import pydirectinput
 import time
 import configparser
@@ -12,6 +14,8 @@ from ocr.ocr_engine import RapidOCREngine
 from ocr.ocr_utils import build_pos_by_bounds
 from utils import Rect, DxCameraCapture
 
+
+log = logging.getLogger(__name__)
 
 CAST_HOLD_SECONDS = 0.38
 CHANGE_LOCATION_POLL_DELAY_SECONDS = 5.0
@@ -47,11 +51,13 @@ def cast_rod() -> None:
     pydirectinput.keyDown("space")
     time.sleep(CAST_HOLD_SECONDS)
     pydirectinput.keyUp("space")
+    log.info(">>> 抛竿完成")
     print(">>> 抛竿完成")
     
     
 def recover_from_timeout(region) -> None:
     """等待上钩超时后移动角色并点击画面，使游戏回到可抛竿状态。"""
+    log.warning(">>> 执行超时恢复动作（上移2秒+点击画面中央+重新抛竿）")
     pydirectinput.keyDown("up")
     time.sleep(2)
     pydirectinput.keyUp("up")
@@ -70,11 +76,13 @@ def clear_backpack(
     ocr_context: OCRContext | None = None,
 ) -> None:
     """执行背包出售流程；退出后若地点 OCR 消失则重试一次。"""
+    log.info(">>> 清理背包")
     print(">>> 清理背包")
     button_click_interval = _click_clear_backpack_buttons(region, config)
     if not _should_retry_clear_backpack(sct, ocr_context, button_click_interval):
         return
 
+    log.warning(">>> 清理背包后未检测到钓鱼地点，再次清理背包")
     print(">>> 清理背包后未检测到钓鱼地点，再次清理背包")
     _click_clear_backpack_buttons(region, config, open_backpack=False)
 
@@ -146,6 +154,7 @@ def click_change_btn(sct: DxCameraCapture, ocr_context: OCRContext) -> None:
 
 def change_location(sct: DxCameraCapture, ocr_context: OCRContext, current_location: FishingLocation) -> None:
     """先前往中转钓点，再按反向路径回到当前钓点以刷新鱼群。"""
+    log.info(">>> 切换钓点 (当前地点=%s)", current_location.value)
     print(">>> 切换钓点")
     
     # 先从当前地点前往中转点，让原地点在返回时重新加载。
@@ -184,6 +193,7 @@ def change_location(sct: DxCameraCapture, ocr_context: OCRContext, current_locat
     now = time.monotonic()
     while time.monotonic() - now < CHANGE_LOCATION_POLL_TOTAL_SECONDS:
         if check_if_have_keyword(sct, ocr_context, CHANGE_LOCATION_BTN_NAME):
+            log.info(">>> 已成功切换地点")
             print(">>> 已成功切换地点")
             return
     

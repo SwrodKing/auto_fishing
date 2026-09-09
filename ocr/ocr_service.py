@@ -1,11 +1,14 @@
 """OCR 业务服务：截图识别地点、背包提示、地图按钮和换点条件。"""
 
+import logging
 import time
 
 from utils import DxCameraCapture, Rect
 from ocr.ocr_utils import FishingLocation, sort_ocr_results, match_location_name, contains_backpack_full_text, OCRContext
 from ocr.ocr_engine import RapidOCREngine, OCRText
 from utils import Rect
+
+log = logging.getLogger(__name__)
 
 CHANGE_LOCATION_POLL_TOTAL_SECONDS = 10
 CHANGE_LOCATION_POLL_INTERVAL_SECONDS = 1.0
@@ -22,6 +25,7 @@ def get_result_from_ocr(
 
     frame = sct.grab(ocr_region)
     if frame is None:
+        log.warning(">>> OCR 截图失败")
         print(">>> OCR 截图失败")
         return None
     
@@ -29,6 +33,7 @@ def get_result_from_ocr(
         results = ocr_engine.detect_and_recognize(frame)
         return results
     except Exception as exc:
+        log.warning(">>> OCR 执行失败: %s", exc)
         print(f">>> OCR 执行失败: {exc}")
         return None
 
@@ -82,14 +87,17 @@ def detect_location_from_ocr(sct: DxCameraCapture, ocr_context: OCRContext, auto
     
     texts = get_texts_from_ocr(sct, ocr_context.engine, ocr_context.regions.location)
     if not texts:
+        log.warning(">>> OCR 没有识别到任何文本，无法自动选择策略")
         print(">>> OCR 没有识别到任何文本，无法自动选择策略")
         return None
 
     matched_location = match_location_name(texts)
     if matched_location is None:
+        log.warning(">>> OCR 找到了文本但没有匹配的策略")
         print(">>> OCR 找到了文本但没有匹配的策略")
         return None
 
+    log.info(">>> 已检测到地点: %s", matched_location.value)
     print(f">>> 已检测到地点: {matched_location}")
     return matched_location
 
@@ -106,6 +114,7 @@ def check_backpack_if_full(sct: DxCameraCapture, ocr_context: OCRContext) -> boo
     if not contains_backpack_full_text(texts):
         return False
 
+    log.warning(">>> 检测到“背包已满，请清理背包”，开始清理背包")
     print(">>> 检测到“背包已满，请清理背包”，开始清理背包")
     return True
 
@@ -130,5 +139,6 @@ def check_if_time_to_change_location(sct: DxCameraCapture, ocr_context: OCRConte
     if check_if_have_keyword(sct, ocr_context, "时"):
         return False
     
+    log.warning(">>> OCR 没有检测到“时”字，可能需要切换钓鱼点")
     print(">>> OCR 没有检测到“时”字，可能需要切换钓鱼点")
     return True
